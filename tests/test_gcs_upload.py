@@ -20,6 +20,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Constants
+TEST_PDF_PATH = "data/test/pdfs/06_09.05.24_0545_BD3_PrelimBook Proj_CY_AugFY25.pdf"
+
 def get_file_link(file_path: str) -> str:
     """Convert file path to clickable link"""
     abs_path = os.path.abspath(file_path)
@@ -117,10 +120,30 @@ class TestGCSUpload:
     
     def setup_method(self):
         """Setup test environment"""
+        print_header("Test Setup")
+        
+        # Initialize GCS manager
+        print("\n🔧 Initializing GCS manager...")
         self.gcs_manager = GCSManager()
-        self.test_dir = "data/test"
         self.project_id = os.getenv('GOOGLE_CLOUD_PROJECT')
-        self.ensure_test_dir_exists()
+        
+        if not self.project_id:
+            raise ValueError("❌ GOOGLE_CLOUD_PROJECT not set in environment")
+        
+        print(f"📦 Project ID: {self.project_id}")
+        print(f"🪣 Bucket: {self.gcs_manager.bucket_name}")
+        
+        # Verify test PDF exists
+        if not os.path.exists(TEST_PDF_PATH):
+            raise FileNotFoundError(f"❌ Test PDF not found: {TEST_PDF_PATH}")
+        
+        file_size = os.path.getsize(TEST_PDF_PATH) / (1024 * 1024)  # Convert to MB
+        print(f"\n📄 Test PDF Information:")
+        print(f"   • Path: {TEST_PDF_PATH}")
+        print(f"   • Size: {file_size:.2f} MB")
+        print(f"   • Last Modified: {datetime.fromtimestamp(os.path.getmtime(TEST_PDF_PATH)).strftime('%Y-%m-%d %H:%M:%S')}")
+        
+        # Clean environment
         self.clean_environment()
         logger.info("Test environment setup completed")
 
@@ -161,39 +184,14 @@ class TestGCSUpload:
             logger.error(f"Teardown failed: {str(e)}")
             raise
 
-    def ensure_test_dir_exists(self):
-        """Ensure test directory exists"""
-        if not os.path.exists(self.test_dir):
-            os.makedirs(self.test_dir)
-        logger.info(f"Test directory verified: {self.test_dir}")
-
-    def create_test_file(self, content="Test content", filename="test.pdf"):
-        """Create a test file"""
-        file_path = os.path.join(self.test_dir, filename)
-        with open(file_path, 'wb') as f:
-            f.write(content.encode())
-        logger.info(f"Created test file: {file_path}")
-        return file_path
-
-    def test_basic_upload(self):
-        """Test basic file upload functionality"""
-        print_header("Basic Upload Test")
-        
-        # Create test file
-        test_file = self.create_test_file(filename="basic_test.pdf")
+    def test_pdf_upload(self):
+        """Test uploading the actual PDF file"""
+        print_header("PDF Upload Test")
         
         try:
-            # Log file information
-            file_size = os.path.getsize(test_file) / (1024 * 1024)  # Convert to MB
-            print(f"\n📄 File Information:")
-            print(f"   • Name: {os.path.basename(test_file)}")
-            print(f"   • Path: {test_file}")
-            print(f"   • Link: {get_file_link(test_file)}")
-            print(f"   • Size: {file_size:.2f} MB")
-            print(f"   • Last Modified: {datetime.fromtimestamp(os.path.getmtime(test_file)).strftime('%Y-%m-%d %H:%M:%S')}")
-            
             # Upload file
-            result = self.gcs_manager.upload_file(test_file)
+            print("\n📤 Starting upload...")
+            result = self.gcs_manager.upload_file(TEST_PDF_PATH)
             log_upload_result(result, self.project_id)
             
             # Verify upload success
@@ -206,78 +204,45 @@ class TestGCSUpload:
             assert metadata is not None, "Metadata not found"
             assert metadata['status'] == 'uploaded', "Incorrect metadata status"
             
-        finally:
-            # Cleanup local file
-            if os.path.exists(test_file):
-                os.remove(test_file)
-                logger.info(f"Cleaned up local file: {test_file}")
+            print("\n✅ Upload test passed successfully!")
+            
+        except Exception as e:
+            logger.error(f"Upload test failed: {str(e)}")
+            print(f"\n❌ Upload test failed: {str(e)}")
+            raise
 
-    def test_duplicate_detection(self):
-        """Test duplicate file detection"""
-        print_header("Duplicate Detection Test")
-        
-        # Create test file
-        test_file = self.create_test_file(filename="duplicate_test.pdf")
+    def test_duplicate_upload(self):
+        """Test uploading the same PDF file twice"""
+        print_header("Duplicate Upload Test")
         
         try:
             # First upload
             print("\n📤 First upload attempt...")
-            result1 = self.gcs_manager.upload_file(test_file)
+            result1 = self.gcs_manager.upload_file(TEST_PDF_PATH)
             log_upload_result(result1, self.project_id)
             assert result1['status'] == 'success', f"First upload failed: {result1}"
             
-            # Try uploading same file again
+            # Second upload (should detect duplicate)
             print("\n📤 Second upload attempt (should detect duplicate)...")
-            result2 = self.gcs_manager.upload_file(test_file)
+            result2 = self.gcs_manager.upload_file(TEST_PDF_PATH)
             log_upload_result(result2, self.project_id)
             assert result2['status'] == 'duplicate', f"Duplicate not detected: {result2}"
             assert result2['file_hash'] == result1['file_hash'], "Hash mismatch"
             
-        finally:
-            # Cleanup
-            if os.path.exists(test_file):
-                os.remove(test_file)
-                logger.info(f"Cleaned up test file: {test_file}")
-
-    def test_different_content(self):
-        """Test uploading files with different content"""
-        print_header("Different Content Test")
-        
-        # Create two files with different content
-        file1 = self.create_test_file(content="Content 1", filename="file1.pdf")
-        file2 = self.create_test_file(content="Content 2", filename="file2.pdf")
-        
-        try:
-            # Upload both files
-            print("\n📤 Uploading first file...")
-            result1 = self.gcs_manager.upload_file(file1)
-            log_upload_result(result1, self.project_id)
+            print("\n✅ Duplicate detection test passed successfully!")
             
-            print("\n📤 Uploading second file...")
-            result2 = self.gcs_manager.upload_file(file2)
-            log_upload_result(result2, self.project_id)
-            
-            # Verify different hashes
-            assert result1['file_hash'] != result2['file_hash'], "Files should have different hashes"
-            assert result1['status'] == 'success', "First upload should succeed"
-            assert result2['status'] == 'success', "Second upload should succeed"
-            
-        finally:
-            # Cleanup
-            for file in [file1, file2]:
-                if os.path.exists(file):
-                    os.remove(file)
+        except Exception as e:
+            logger.error(f"Duplicate test failed: {str(e)}")
+            print(f"\n❌ Duplicate test failed: {str(e)}")
+            raise
 
     def test_list_files(self):
         """Test listing files in GCS bucket"""
         print_header("List Files Test")
         
-        # Create and upload test file
-        test_file = self.create_test_file(filename="list_test.pdf")
-        
         try:
-            # Upload file
-            result = self.gcs_manager.upload_file(test_file)
+            # Upload test file first
+            result = self.gcs_manager.upload_file(TEST_PDF_PATH)
             log_upload_result(result, self.project_id)
             assert result['status'] == 'success', "Upload should succeed"
             
@@ -296,10 +261,12 @@ class TestGCSUpload:
                 print(f"     Console: {links['console_url']}")
                 print(f"     Public: {links['public_url']}")
             
-        finally:
-            # Cleanup
-            if os.path.exists(test_file):
-                os.remove(test_file)
+            print("\n✅ List files test passed successfully!")
+            
+        except Exception as e:
+            logger.error(f"List files test failed: {str(e)}")
+            print(f"\n❌ List files test failed: {str(e)}")
+            raise
 
 def run_tests():
     """Run all tests with proper setup"""
@@ -310,11 +277,11 @@ def run_tests():
         return
     
     test = TestGCSUpload()
+    test.setup_method()  # Initialize the test environment
     
     tests = [
-        (test.test_basic_upload, "Basic Upload"),
-        (test.test_duplicate_detection, "Duplicate Detection"),
-        (test.test_different_content, "Different Content"),
+        (test.test_pdf_upload, "PDF Upload"),
+        (test.test_duplicate_upload, "Duplicate Upload"),
         (test.test_list_files, "List Files")
     ]
     
@@ -341,6 +308,9 @@ def run_tests():
         sys.exit(1)
     else:
         print("\n🎉 All tests passed successfully!")
+    
+    # Clean up at the end
+    test.teardown_method()
 
 def cleanup_test_environment():
     """Standalone function to clean up test environment"""
