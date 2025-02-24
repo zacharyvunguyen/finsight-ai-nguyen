@@ -5,6 +5,7 @@ An intelligent Streamlit application for processing, analyzing, and querying PDF
 ## 🌟 Features
 
 - PDF document upload with duplicate detection to Google Cloud Storage
+- Secure document handling with authenticated access only
 - Structured (tables) and unstructured (text) data extraction using LlamaParse
 - Vector embeddings generation and storage with Pinecone
 - Context-aware document querying using LangChain and LlamaIndex
@@ -44,7 +45,7 @@ finsight-ai-nguyen/
 
 ## 🚀 Quick Start
 
-See [quickstart.md](quickstart.md) for detailed setup and running instructions.
+See [instructions.md](instructions.md) for detailed setup and running instructions.
 
 ## 📋 Prerequisites
 
@@ -53,6 +54,20 @@ See [quickstart.md](quickstart.md) for detailed setup and running instructions.
 - OpenAI API key
 - Pinecone API key
 - LlamaParse API key
+
+## 🔒 Security Features
+
+- All documents are stored securely in Google Cloud Storage
+- No public links are generated for uploaded documents
+- Access to documents requires GCP authentication
+- Duplicate detection prevents redundant storage
+- Metadata is stored securely in Firestore
+
+## 🏆 Milestones
+
+- **v0.1.0** - Initial project setup
+- **v0.2.0** - PDF upload functionality with GCS integration
+- **v0.3.0** - Secure document handling with authenticated access only (CURRENT)
 
 ## 📝 License
 

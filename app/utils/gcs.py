@@ -5,6 +5,7 @@ from google.cloud import firestore
 from datetime import datetime
 from dotenv import load_dotenv
 import logging
+from pathlib import Path
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -16,12 +17,37 @@ class GCSManager:
     def __init__(self):
         """Initialize GCS manager with configuration"""
         try:
-            self.bucket_name = os.getenv('GCP_STORAGE_BUCKET')
+            self.bucket_name = os.getenv('GCP_STORAGE_BUCKET', 'finsight-reports-bucket')
             if not self.bucket_name:
                 raise ValueError("GCP_STORAGE_BUCKET not set in environment")
             
-            self.storage_client = storage.Client()
-            self.db = firestore.Client()
+            # Get the service account key file path
+            # First try the environment variable
+            key_path = os.getenv('GOOGLE_APPLICATION_CREDENTIALS')
+            
+            # If not set, try the default location
+            if not key_path:
+                # Try different possible locations for the key file
+                possible_paths = [
+                    'config/keys/finsight-ai-nguyen-89af45b3c2c0.json',  # Project root
+                    '../config/keys/finsight-ai-nguyen-89af45b3c2c0.json',  # From app directory
+                    os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 
+                                'config/keys/finsight-ai-nguyen-89af45b3c2c0.json')  # Absolute path
+                ]
+                
+                for path in possible_paths:
+                    if os.path.exists(path):
+                        key_path = path
+                        break
+            
+            if not key_path or not os.path.exists(key_path):
+                raise FileNotFoundError(f"Service account key file not found. Tried: {possible_paths}")
+            
+            logger.info(f"Using service account key file: {key_path}")
+            
+            # Initialize clients with explicit credentials
+            self.storage_client = storage.Client.from_service_account_json(key_path)
+            self.db = firestore.Client.from_service_account_json(key_path)
             self.bucket = self.storage_client.bucket(self.bucket_name)
             
             # Ensure bucket exists

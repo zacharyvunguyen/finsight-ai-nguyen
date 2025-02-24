@@ -1,155 +1,116 @@
-# FinSight AI - User Instructions
+# FinSight AI - Quick Setup Guide
 
-## 📚 Table of Contents
-1. [Getting Started](#getting-started)
-2. [Document Management](#document-management)
-3. [Analysis Features](#analysis-features)
-4. [Query Interface](#query-interface)
-5. [Advanced Features](#advanced-features)
+## 🚀 Quick Start
 
-## Getting Started
+### 1. Prerequisites
+- Python 3.9+ with Anaconda
+- Google Cloud Platform account
+- Required API keys:
+  - OpenAI API key
+  - Pinecone API key
+  - LlamaParse API key
 
-### First-Time Access
-1. Open your web browser
-2. Navigate to the FinSight AI application URL
-3. You'll be presented with the main dashboard
+### 2. Initial Setup
+```bash
+# Clone the repository
+git clone https://github.com/yourusername/finsight-ai-nguyen.git
+cd finsight-ai-nguyen
 
-### Interface Overview
-- **Navigation Bar**: Access different sections of the application
-- **Upload Section**: For document management
-- **Analysis Panel**: View and analyze processed documents
-- **Query Interface**: Ask questions about your documents
+# Create and activate conda environment
+conda create -n finsight python=3.9
+conda activate finsight
 
-## Document Management
+# Install dependencies
+pip install -r requirements.txt
+```
 
-### Uploading Documents
-1. Click on "Upload" in the navigation bar
-2. Select PDF file(s) from your computer
-3. The system will automatically:
-   - Check for duplicates
-   - Process the document
-   - Extract text and tables
-   - Generate embeddings
+### 3. Configure API Keys
+1. Copy `.env.example` to `.env`:
+```bash
+cp .env.example .env
+```
 
-### Document Status
-- **Processing**: Document is being analyzed
-- **Complete**: Document is ready for querying
-- **Error**: Processing failed (check error message)
+2. Edit `.env` with your API keys:
+```
+OPENAI_API_KEY=your_openai_key
+PINECONE_API_KEY=your_pinecone_key
+LLAMAPARSE_API_KEY=your_llamaparse_key
+GCP_STORAGE_BUCKET=finsight-reports-bucket
+GOOGLE_CLOUD_PROJECT=finsight-ai-nguyen
+```
 
-### Managing Uploaded Documents
-- View all uploaded documents
-- Check processing status
-- Remove documents if needed
-- View document metadata
+### 4. Setup Google Cloud
+```bash
+# Run the setup script
+./setup_project.sh
+```
+This will:
+- Configure GCP credentials
+- Create necessary buckets
+- Setup required services
 
-## Analysis Features
+### 5. Run the Application
+```bash
+# Start the Streamlit app
+cd app
+streamlit run main.py
+```
 
-### Text Analysis
-- View extracted text content
-- See key topics and themes
-- Access important entities and dates
-- Review document structure
+## 📝 Basic Usage
 
-### Table Analysis
-- View extracted tables
-- Export tables to CSV
-- Sort and filter table content
-- Analyze tabular data
+### Upload Documents
+1. Open app in browser (usually http://localhost:8501)
+2. Click "Upload" button in the sidebar
+3. Select your PDF file
+4. Click "Upload & Process" button
+5. Wait for processing to complete
+6. You'll be automatically redirected to the Documents tab
 
-### Document Insights
-- Document summary
-- Key findings
-- Important metrics
-- Related documents
+### View Documents
+1. Click "Documents" in the sidebar
+2. View the list of all uploaded documents
+3. Click "View" to see details of a specific document
+4. Access the document in GCP Console (requires authentication)
 
-## Query Interface
+### Query Documents
+1. Go to Query tab in the sidebar
+2. Type your question
+3. View results with source citations
 
-### Asking Questions
-1. Enter your question in the query box
-2. System will:
-   - Search relevant context
-   - Generate comprehensive answer
-   - Provide source references
+## 🔒 Security Features
 
-### Query Types
-- **Factual Questions**: Specific information from documents
-- **Analysis Questions**: Insights and patterns
-- **Comparison Questions**: Compare different documents
-- **Summary Questions**: Overview of topics
+### Document Access
+- All documents are stored securely in Google Cloud Storage
+- No public links are generated for uploaded documents
+- Access to documents requires GCP authentication
+- Only authenticated users can view or download files
 
 ### Best Practices
-- Be specific in your questions
-- Use clear, concise language
-- Reference specific documents if needed
-- Check source citations
+- Keep your GCP credentials secure
+- Don't share your service account key
+- Regularly rotate credentials
+- Monitor access logs in GCP Console
 
-## Advanced Features
-
-### Document Comparison
-1. Select multiple documents
-2. Choose comparison criteria
-3. Review comparative analysis
-
-### Export Options
-- Download analysis reports
-- Export query results
-- Save processed data
-- Generate summaries
-
-### Customization
-- Adjust analysis parameters
-- Set preferred display options
-- Configure notification settings
-- Customize report formats
-
-## Tips & Tricks
-
-### For Better Results
-- Upload high-quality PDFs
-- Use specific queries
-- Check document processing status
-- Review source citations
+## 🔧 Troubleshooting
 
 ### Common Issues
-1. **Upload Issues**
-   - Check file format (PDF only)
-   - Verify file size limits
-   - Ensure good internet connection
+1. **Upload Fails**
+   - Check PDF file format
+   - Verify API keys in `.env`
+   - Ensure GCP setup is complete
+   - Check GCP credentials are properly loaded
 
-2. **Query Issues**
-   - Rephrase unclear questions
-   - Check document processing status
-   - Verify document relevance
+2. **Query Not Working**
+   - Confirm document upload finished
+   - Check OpenAI API key
+   - Verify internet connection
 
-3. **Display Issues**
-   - Refresh the browser
-   - Clear cache if needed
-   - Check browser compatibility
-
-## Support
-
-### Getting Help
-- Check documentation
+### Need Help?
+- Check the logs in `app/logs`
+- Review GCP Console for storage issues
 - Contact support team
-- Review FAQ section
-- Submit bug reports
 
-### Feedback
-We welcome your feedback to improve the application:
-- Feature requests
-- Bug reports
-- Usability suggestions
-- General feedback
-
-## Security Notes
-
-### Data Protection
-- All documents are securely stored
-- Access is controlled and monitored
-- Data is encrypted at rest and in transit
-
-### Best Practices
-- Keep credentials secure
-- Log out after sessions
-- Regular security updates
-- Monitor access logs 
+## 📚 Resources
+- [GCP Console](https://console.cloud.google.com)
+- [Streamlit Docs](https://docs.streamlit.io)
+- [Project Repository](https://github.com/yourusername/finsight-ai-nguyen) 
