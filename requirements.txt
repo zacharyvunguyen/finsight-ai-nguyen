@@ -1,0 +1,48 @@
+# Core dependencies
+streamlit
+python-dotenv
+pandas
+numpy
+matplotlib
+plotly
+
+# Google Cloud dependencies
+google-cloud-storage
+google-cloud-firestore
+google-auth
+
+# PDF processing
+llama-parse
+PyPDF2
+pdfplumber
+
+# Vector database
+pinecone[grpc]
+
+# OpenAI
+openai
+
+# LlamaIndex and related packages
+llama-index-core
+llama-index-embeddings-openai
+llama-index-postprocessor-flag-embedding-reranker
+llama-index-llms-openai
+llama-index-readers-file
+llama-index-readers-llama-parse
+llama-cloud-services
+
+# LangChain
+langchain
+langchain-openai
+
+# Utilities
+tqdm
+requests
+pytz
+tenacity
+
+# Development tools
+pytest
+black
+isort
+flake8 
