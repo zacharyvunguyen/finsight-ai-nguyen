@@ -133,11 +133,24 @@ def create_nodes_from_documents(documents: List[Document], llm):
     
     # Combine all nodes
     all_nodes = base_nodes + objects + page_nodes
+    
+    # Reduce metadata size to avoid Pinecone limit
+    for node in all_nodes:
+        # Keep only essential metadata to reduce size
+        if hasattr(node, 'metadata') and node.metadata:
+            # Create a simplified metadata dict with only essential fields
+            simplified_metadata = {
+                'file_name': node.metadata.get('file_name', ''),
+                'page_number': node.metadata.get('page_number', 0),
+                'document_id': node.node_id[:10]  # Truncate ID to save space
+            }
+            node.metadata = simplified_metadata
+    
     print_result(True, f"Combined into {len(all_nodes)} total nodes")
     
     return all_nodes, base_nodes, objects, page_nodes
 
-def setup_pinecone_vector_store(index_name: str):
+def setup_pinecone_vector_store(index_name: str, namespace: str = None):
     """Set up Pinecone vector store."""
     import pinecone
     from pinecone.grpc import PineconeGRPC
@@ -148,18 +161,26 @@ def setup_pinecone_vector_store(index_name: str):
     pc = PineconeGRPC(api_key=api_key)
     
     # Check if index exists
-    indexes = pc.list_indexes()
-    index_names = [index.name for index in indexes]
+    if index_name not in pc.list_indexes():
+        # Create index if it doesn't exist
+        pc.create_index(
+            name=index_name,
+            dimension=1536,  # OpenAI embedding dimension
+            metric="cosine",
+            spec={"serverless": {"cloud": "aws", "region": "us-west-2"}}
+        )
+        print_result(True, f"Created Pinecone index '{index_name}'")
     
-    if index_name not in index_names:
-        raise ValueError(f"Pinecone index '{index_name}' does not exist. Please run setup_pinecone.py first.")
-    
-    # Get the index
+    # Connect to index
     index = pc.Index(index_name)
     
-    # Create vector store
-    vector_store = PineconeVectorStore(pinecone_index=index)
-    print_result(True, f"Connected to Pinecone index '{index_name}'")
+    # Create vector store with namespace if provided
+    if namespace:
+        vector_store = PineconeVectorStore(pinecone_index=index, namespace=namespace)
+        print_result(True, f"Connected to Pinecone index '{index_name}' with namespace '{namespace}'")
+    else:
+        vector_store = PineconeVectorStore(pinecone_index=index)
+        print_result(True, f"Connected to Pinecone index '{index_name}'")
     
     return vector_store
 
