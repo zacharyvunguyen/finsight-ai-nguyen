@@ -1,48 +1,48 @@
 # Core dependencies
-streamlit
-python-dotenv
-pandas
-numpy
-matplotlib
-plotly
+streamlit>=1.32.0
+python-dotenv>=1.0.0
+pandas>=2.0.0
+numpy>=1.24.0
+matplotlib>=3.7.0
+plotly>=5.18.0
 
 # Google Cloud dependencies
-google-cloud-storage
-google-cloud-firestore
-google-auth
+google-cloud-storage>=3.0.0
+google-cloud-firestore>=2.11.0
+google-auth>=2.22.0
 
 # PDF processing
-llama-parse
-PyPDF2
-pdfplumber
+llama-parse>=0.3.0
+PyPDF2>=3.0.0
+pdfplumber>=0.10.0
 
 # Vector database
-pinecone[grpc]
+pinecone[grpc]>=6.0.0
 
 # OpenAI
-openai
+openai>=1.12.0
 
 # LlamaIndex and related packages
-llama-index-core
-llama-index-embeddings-openai
-llama-index-postprocessor-flag-embedding-reranker
-llama-index-llms-openai
-llama-index-readers-file
-llama-index-readers-llama-parse
-llama-cloud-services
+llama-index-core==0.10.6.post1
+llama-index-embeddings-openai>=0.1.0
+llama-index-llms-openai>=0.1.0
+llama-index-postprocessor-flag-embedding-reranker>=0.1.0
+llama-index-vector-stores-pinecone>=0.1.0
+llama-cloud-services>=0.0.1
+nest-asyncio>=1.5.0
 
 # LangChain
-langchain
-langchain-openai
+langchain>=0.1.0
+langchain-openai>=0.0.5
 
 # Utilities
-tqdm
-requests
-pytz
-tenacity
+tqdm>=4.66.0
+requests>=2.31.0
+pytz>=2023.3
+tenacity>=8.2.0
 
 # Development tools
-pytest
-black
-isort
-flake8 
+pytest>=7.4.0
+black>=23.7.0
+isort>=5.12.0
+flake8>=6.1.0 
