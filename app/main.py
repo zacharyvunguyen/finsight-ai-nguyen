@@ -8,8 +8,11 @@ from pathlib import Path
 from dotenv import load_dotenv
 from utils.gcs import GCSManager
 
-# Add RAG pipeline imports
-from scripts.setup_rag_pipeline import (
+# Add the project root to the Python path to fix import issues
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+# Add RAG pipeline imports with updated paths
+from scripts.setup.setup_rag_pipeline import (
     load_environment as load_rag_environment,
     download_pdf_from_gcs,
     parse_document_with_llamaparse,
@@ -208,35 +211,25 @@ def documents_section():
     # Debug information
     st.sidebar.markdown("### Debug Info")
     st.sidebar.markdown(f"Files in session: {len(st.session_state.uploaded_files)}")
+    st.sidebar.markdown(f"Processed PDFs: {len(st.session_state.processed_pdfs)}")
+    
+    # Add debug button
+    if st.sidebar.button("Debug Session State"):
+        st.sidebar.json({
+            "processed_pdfs_keys": list(st.session_state.processed_pdfs.keys()),
+            "current_pdf": st.session_state.current_pdf,
+            "active_tab": st.session_state.active_tab,
+            "uploaded_files_count": len(st.session_state.uploaded_files)
+        })
+    
+    # Add refresh button
+    if st.sidebar.button("🔄 Refresh Files from GCS"):
+        refresh_files_from_gcs()
     
     # Check if we need to load files from GCS
     if not st.session_state.uploaded_files:
         with st.spinner("Loading documents from storage..."):
-            try:
-                # Try to load files from GCS
-                gcs_manager = GCSManager()
-                files = gcs_manager.list_files()
-                
-                if files:
-                    st.info(f"Found {len(files)} files in storage. Loading metadata...")
-                    # We have files but no session state, let's populate it
-                    for file_path in files:
-                        if file_path.startswith('uploads/'):
-                            file_name = file_path.replace('uploads/', '')
-                            gcs_uri = f"gs://{gcs_manager.bucket_name}/{file_path}"
-                            links = get_gcs_links(gcs_uri)
-                            
-                            # Add to session state
-                            st.session_state.uploaded_files.append({
-                                'name': file_name,
-                                'status': 'success',
-                                'gcs_uri': gcs_uri,
-                                'console_url': links['console_url'],
-                                'metadata': {},  # We don't have metadata without the hash
-                                'gcs_path': file_path
-                            })
-            except Exception as e:
-                st.error(f"Error loading documents: {str(e)}")
+            refresh_files_from_gcs()
     
     if not st.session_state.uploaded_files:
         st.info("No documents have been uploaded yet.")
@@ -281,7 +274,8 @@ def documents_section():
         
         with col3:
             gcs_path = file_info.get('gcs_path', '')
-            if gcs_path in st.session_state.processed_pdfs:
+            is_processed = gcs_path in st.session_state.processed_pdfs
+            if is_processed:
                 st.markdown("✅ Ready")
             else:
                 st.markdown("❌ Not processed")
@@ -296,6 +290,8 @@ def documents_section():
                             <strong>File:</strong> {file_info['name']}<br>
                             <strong>Status:</strong> {file_info['status'].capitalize()}<br>
                             <strong>GCS URI:</strong> {file_info['gcs_uri']}<br>
+                            <strong>GCS Path:</strong> {file_info.get('gcs_path', 'N/A')}<br>
+                            <strong>Processed for RAG:</strong> {gcs_path in st.session_state.processed_pdfs}<br>
                             <strong>Links:</strong><br>
                             - <a href="{file_info['console_url']}" target="_blank">View in Console</a> (requires GCP authentication)
                         </div>
@@ -307,7 +303,9 @@ def documents_section():
             
             with col4_2:
                 gcs_path = file_info.get('gcs_path', '')
-                if gcs_path not in st.session_state.processed_pdfs:
+                is_processed = gcs_path in st.session_state.processed_pdfs
+                
+                if not is_processed:
                     if st.button("Process", key=f"process_{idx}"):
                         process_for_rag(file_info)
                 else:
@@ -363,7 +361,15 @@ def query_section():
     # Query input
     query = st.text_input("Ask a question about your document", key="query_input")
     
-    if st.button("Submit", disabled=not query):
+    col1, col2 = st.columns([1, 1])
+    with col1:
+        submit_button = st.button("Submit", disabled=not query)
+    with col2:
+        if st.button("Clear Chat History"):
+            st.session_state.chat_history = []
+            st.rerun()
+    
+    if submit_button:
         with st.spinner("Generating response..."):
             # Add user message to chat history
             st.session_state.chat_history.append({
@@ -373,15 +379,29 @@ def query_section():
             
             # Get response from query engine
             try:
+                # Set streaming to True for better UX
                 response = st.session_state.query_engine.query(query)
                 
                 # Extract sources
                 sources = []
                 if hasattr(response, 'source_nodes'):
-                    for i, node in enumerate(response.source_nodes[:3]):
+                    for i, node in enumerate(response.source_nodes):
+                        source_content = node.get_content()
+                        source_metadata = node.metadata
+                        
+                        # Format source content for better readability
+                        if len(source_content) > 300:
+                            source_content = source_content[:300] + "..."
+                        
+                        # Add page number if available
+                        page_info = ""
+                        if 'page_number' in source_metadata:
+                            page_info = f" (Page {source_metadata['page_number']})"
+                        
                         sources.append({
-                            "content": node.get_content()[:300] + "..." if len(node.get_content()) > 300 else node.get_content(),
-                            "metadata": node.metadata
+                            "content": source_content,
+                            "metadata": source_metadata,
+                            "page_info": page_info
                         })
                 
                 # Add assistant message to chat history
@@ -412,9 +432,10 @@ def display_sources(sources):
     sources_html = '<div class="sources-section"><h4>Sources:</h4>'
     
     for i, source in enumerate(sources):
+        page_info = source.get("page_info", "")
         sources_html += f"""
         <div class="source-item">
-            <p><strong>Source {i+1}:</strong></p>
+            <p><strong>Source {i+1}{page_info}:</strong></p>
             <p>{source["content"]}</p>
         </div>
         """
@@ -439,6 +460,7 @@ def process_for_rag(file_info):
         try:
             # Create progress bar
             progress_bar = st.progress(0)
+            st.info("Step 1/8: Loading environment variables...")
             
             # Load environment variables
             env = load_rag_environment()
@@ -446,53 +468,97 @@ def process_for_rag(file_info):
             index_name = env['PINECONE_INDEX_NAME']
             
             progress_bar.progress(10)
+            st.info("Step 2/8: Verifying file exists in GCS...")
+            
+            # Verify file exists in GCS before downloading
+            from google.cloud import storage
+            storage_client = storage.Client()
+            bucket = storage_client.bucket(bucket_name)
+            blob = bucket.blob(gcs_path)
+            
+            if not blob.exists():
+                st.error(f"File not found in GCS: {gcs_path}")
+                st.info("This could happen if the file was uploaded with a different path or if it was deleted.")
+                
+                # Try to find the file by name
+                st.info("Attempting to find the file by name...")
+                file_name = os.path.basename(gcs_path)
+                blobs = list(bucket.list_blobs(prefix="uploads/"))
+                matching_blobs = [b for b in blobs if os.path.basename(b.name) == file_name]
+                
+                if matching_blobs:
+                    # Found a matching file
+                    correct_path = matching_blobs[0].name
+                    st.success(f"Found file at different path: {correct_path}")
+                    
+                    # Update the file_info with correct path
+                    file_info['gcs_path'] = correct_path
+                    gcs_path = correct_path
+                    
+                    # Update in session state
+                    for i, f in enumerate(st.session_state.uploaded_files):
+                        if f.get('name') == file_info['name']:
+                            st.session_state.uploaded_files[i]['gcs_path'] = correct_path
+                            break
+                else:
+                    st.error("Could not find any matching file in GCS. Please upload the file again.")
+                    return
+            
+            progress_bar.progress(20)
+            st.info("Step 3/8: Downloading PDF from GCS...")
             
             # Download PDF from GCS
             local_path = f"data/temp/{os.path.basename(gcs_path)}"
+            os.makedirs(os.path.dirname(local_path), exist_ok=True)
             pdf_path = download_pdf_from_gcs(bucket_name, gcs_path, local_path)
             
-            progress_bar.progress(20)
+            progress_bar.progress(30)
+            st.info("Step 4/8: Initializing LlamaIndex...")
             
             # Initialize LlamaIndex
             llm, embed_model = setup_llama_index()
             
-            progress_bar.progress(30)
+            progress_bar.progress(40)
+            st.info("Step 5/8: Parsing document with LlamaParse...")
             
             # Parse document with LlamaParse
             documents = parse_document_with_llamaparse(pdf_path)
             
-            progress_bar.progress(50)
-            
-            # Create nodes from documents
-            all_nodes, base_nodes, objects, page_nodes = create_nodes_from_documents(documents, llm)
+            # Add file name to document metadata
+            for doc in documents:
+                if not doc.metadata:
+                    doc.metadata = {}
+                doc.metadata['file_name'] = os.path.basename(pdf_path)
+                doc.metadata['source'] = gcs_path
             
             progress_bar.progress(60)
+            st.info("Step 6/8: Creating nodes from documents...")
             
-            # Reduce metadata size to avoid Pinecone limit
-            for node in all_nodes:
-                # Keep only essential metadata to reduce size
-                if hasattr(node, 'metadata') and node.metadata:
-                    # Create a simplified metadata dict with only essential fields
-                    simplified_metadata = {
-                        'file_name': os.path.basename(pdf_path),
-                        'page_number': node.metadata.get('page_number', 0) if node.metadata else 0,
-                        'document_id': node.node_id[:10]  # Truncate ID to save space
-                    }
-                    node.metadata = simplified_metadata
+            # Create nodes from documents
+            nodes, base_nodes, objects, page_nodes = create_nodes_from_documents(documents, llm)
+            
+            # Display node stats
+            st.info(f"Created {len(nodes)} nodes from document")
             
             progress_bar.progress(70)
+            st.info("Step 7/8: Setting up Pinecone vector store...")
             
-            # Set up Pinecone vector store with namespace based on file hash
-            # This helps avoid duplicate processing by storing vectors in separate namespaces
-            file_hash = file_info.get('metadata', {}).get('file_hash', os.path.basename(gcs_path))
-            vector_store = setup_pinecone_vector_store(index_name, namespace=file_hash)
+            # Create a unique namespace for this document
+            # Use file hash if available, otherwise create a hash from the file path
+            if 'metadata' in file_info and file_info['metadata'] and 'file_hash' in file_info['metadata']:
+                namespace = file_info['metadata']['file_hash']
+            else:
+                import hashlib
+                namespace = hashlib.md5(gcs_path.encode()).hexdigest()
             
-            progress_bar.progress(80)
-            
-            # Create vector index
-            index = create_vector_index(all_nodes, vector_store)
+            # Set up Pinecone vector store with namespace
+            vector_store = setup_pinecone_vector_store(index_name, namespace=namespace)
             
             progress_bar.progress(90)
+            st.info("Step 8/8: Creating vector index and query engine...")
+            
+            # Create vector index
+            index = create_vector_index(nodes, vector_store)
             
             # Create query engine
             query_engine = create_query_engine(index)
@@ -504,6 +570,17 @@ def process_for_rag(file_info):
             
             # Show success message
             st.success(f"File {file_info['name']} successfully processed for RAG!")
+            st.info(f"Document stored in Pinecone with namespace: {namespace}")
+            st.info(f"Total nodes processed: {len(nodes)}")
+            
+            # Display sample nodes for verification
+            with st.expander("View sample nodes"):
+                for i, node in enumerate(nodes[:3]):
+                    st.markdown(f"**Node {i+1}**")
+                    st.markdown(f"**Content Preview:** {node.metadata.get('content_preview', 'No preview')}")
+                    st.markdown(f"**Page:** {node.metadata.get('page_number', 'Unknown')}")
+                    st.markdown(f"**Type:** {node.metadata.get('node_type', 'Unknown')}")
+                    st.markdown("---")
             
             # Offer to start chatting
             if st.button("Start Chatting"):
@@ -515,6 +592,17 @@ def process_for_rag(file_info):
                 
         except Exception as e:
             st.error(f"Error processing file for RAG: {str(e)}")
+            import traceback
+            st.code(traceback.format_exc(), language="python")
+            
+            if "No such object" in str(e) or "404" in str(e):
+                st.warning("The file could not be found in Google Cloud Storage. This might happen if:")
+                st.markdown("""
+                1. The file was deleted from GCS
+                2. The file path is incorrect
+                3. The bucket name is incorrect
+                """)
+                st.info("Try uploading the file again or check your GCS bucket configuration.")
 
 def process_upload(uploaded_file):
     with st.spinner('Uploading and processing file...'):
@@ -643,6 +731,51 @@ def get_gcs_links(gcs_uri):
         'console_url': console_url,
         'bucket_url': f"https://console.cloud.google.com/storage/browser/{bucket_name}?project={project_id}"
     }
+
+def refresh_files_from_gcs():
+    """Refresh the list of files from GCS and update session state."""
+    try:
+        # Clear existing files
+        st.session_state.uploaded_files = []
+        
+        # Try to load files from GCS
+        gcs_manager = GCSManager()
+        files = gcs_manager.list_files()
+        
+        if files:
+            st.info(f"Found {len(files)} files in storage. Loading metadata...")
+            # We have files but no session state, let's populate it
+            for file_path in files:
+                if file_path.startswith('uploads/'):
+                    file_name = file_path.replace('uploads/', '')
+                    gcs_uri = f"gs://{gcs_manager.bucket_name}/{file_path}"
+                    links = get_gcs_links(gcs_uri)
+                    
+                    # Try to get metadata if available
+                    try:
+                        # Get blob metadata
+                        blob = gcs_manager.storage_client.bucket(gcs_manager.bucket_name).blob(file_path)
+                        metadata = blob.metadata or {}
+                    except:
+                        metadata = {}
+                    
+                    # Add to session state
+                    st.session_state.uploaded_files.append({
+                        'name': file_name,
+                        'status': 'success',
+                        'gcs_uri': gcs_uri,
+                        'console_url': links['console_url'],
+                        'metadata': metadata,
+                        'gcs_path': file_path
+                    })
+            
+            st.success(f"Successfully loaded {len(st.session_state.uploaded_files)} files from GCS.")
+        else:
+            st.info("No files found in GCS bucket.")
+    except Exception as e:
+        st.error(f"Error refreshing files from GCS: {str(e)}")
+        import traceback
+        st.sidebar.code(traceback.format_exc(), language="python")
 
 # Main app
 def main():
