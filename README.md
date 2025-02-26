@@ -12,6 +12,8 @@ An intelligent Streamlit application for processing, analyzing, and querying PDF
 - Retrieval Augmented Generation (RAG) pipeline for intelligent document chat
 - Interactive chat interface with source attribution
 - Production-ready deployment on Google Cloud Platform
+- Enhanced name recognition for queries about specific individuals
+- Modern, responsive UI with compact information display
 
 ## 🔧 Tech Stack
 
@@ -20,15 +22,18 @@ An intelligent Streamlit application for processing, analyzing, and querying PDF
 - **Document Processing**: LlamaParse
 - **Embeddings**: OpenAI (text-embedding-3-small)
 - **Vector Storage**: Pinecone
-- **Language Model**: GPT-4
-- **Query Engine**: LlamaIndex
+- **Language Model**: GPT-3.5 Turbo
+- **Query Engine**: LangChain
 - **Deployment**: Google Cloud Run & App Engine
 
 ## 📁 Project Structure
 
 finsight-ai-nguyen/
 ├── app/
-│   ├── main.py              # Streamlit application
+│   ├── streamlit/
+│   │   ├── app.py          # Streamlit application
+│   │   └── README.md       # Streamlit app documentation
+│   ├── main.py             # Main application entry point
 │   ├── utils/
 │   │   ├── gcs.py          # GCS operations
 │   │   ├── parser.py       # PDF parsing
@@ -43,11 +48,19 @@ finsight-ai-nguyen/
 │   ├── temp/             # Temporary files
 │   └── test/            # Test files
 ├── scripts/             # Setup and utility scripts
-│   ├── setup_gcp.py     # GCP setup
-│   ├── setup_pinecone.py # Pinecone setup
-│   ├── setup_rag_pipeline.py # RAG pipeline setup
-│   └── process_pdf.py   # PDF processing
+│   ├── setup.py         # Unified setup script
+│   ├── setup/           # Setup modules
+│   │   ├── setup_gcp.py     # GCP setup
+│   │   ├── setup_pinecone.py # Pinecone setup
+│   │   └── setup_rag_pipeline.py # RAG pipeline setup
+│   └── utils/           # Utility functions
+│       └── common.py    # Common utility functions
 ├── tests/               # Unit tests
+│   ├── test_llamaparse_pdf.py # LlamaParse PDF test
+│   ├── test_gcs_pdf.py  # GCS PDF test
+│   ├── test_rag_with_openai.py # RAG with OpenAI test
+│   ├── STREAMLIT_APP.md # Streamlit app documentation
+│   └── README.md        # Test suite documentation
 ├── deployment/         # Deployment configs
 ├── .env               # Environment variables
 └── requirements.txt   # Python dependencies
@@ -81,8 +94,20 @@ The application uses a Retrieval Augmented Generation (RAG) pipeline to provide 
 3. **Embedding**: Text chunks are converted to vector embeddings using OpenAI
 4. **Storage**: Embeddings are stored in Pinecone with namespaces to avoid duplication
 5. **Retrieval**: When a query is made, the most relevant chunks are retrieved
-6. **Generation**: GPT-4 generates responses based on the retrieved context
+6. **Generation**: GPT-3.5 Turbo generates responses based on the retrieved context
 7. **Source Attribution**: Responses include references to the source material
+
+## 📱 Streamlit Application
+
+The project includes a Streamlit application for interacting with the RAG pipeline:
+
+- **Document Selection**: Choose which documents to query
+- **Natural Language Interface**: Ask questions in plain English
+- **Source Attribution**: See exactly where information comes from
+- **Modern UI**: Clean, responsive design with intuitive navigation
+- **Enhanced Entity Recognition**: Improved handling of queries about specific individuals
+
+For detailed information about the Streamlit application, see [tests/STREAMLIT_APP.md](tests/STREAMLIT_APP.md).
 
 ## 🏆 Milestones
 
@@ -90,6 +115,8 @@ The application uses a Retrieval Augmented Generation (RAG) pipeline to provide 
 - **v0.2.0** - PDF upload functionality with GCS integration
 - **v0.3.0** - Secure document handling with authenticated access only
 - **v0.4.0** - RAG pipeline integration with chat interface (CURRENT)
+- **v0.4.1** - Enhanced UI with modern design and improved UX
+- **v0.4.2** - Advanced entity recognition and improved query handling
 
 ## 📝 License
 

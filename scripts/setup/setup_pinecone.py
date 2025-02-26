@@ -11,7 +11,7 @@ This script:
 import os
 import time
 from dotenv import load_dotenv
-from pinecone.grpc import PineconeGRPC
+from pinecone import Pinecone, ServerlessSpec
 
 def print_header(message):
     """Print a formatted header message."""
@@ -53,19 +53,24 @@ def setup_pinecone():
         print_result(True, "Environment variables loaded successfully")
         
         # Initialize Pinecone client
-        client = PineconeGRPC(api_key=env['PINECONE_API_KEY'])
+        pc = Pinecone(api_key=env['PINECONE_API_KEY'])
         print_result(True, "Pinecone client initialized")
         
         # List existing indexes
-        indexes = client.list_indexes()
+        indexes = pc.list_indexes()
+        index_names = [index.name for index in indexes]
         index_name = env['PINECONE_INDEX_NAME']
         
-        if index_name not in [index.name for index in indexes]:
+        if index_name not in index_names:
             # Create index if it doesn't exist
-            client.create_index(
+            pc.create_index(
                 name=index_name,
                 dimension=int(env['PINECONE_DIMENSION']),
-                metric=env['PINECONE_METRIC']
+                metric=env['PINECONE_METRIC'],
+                spec=ServerlessSpec(
+                    cloud=env['PINECONE_CLOUD'],
+                    region=env['PINECONE_REGION']
+                )
             )
             print_result(True, f"Created new index: {index_name}")
             
@@ -76,7 +81,7 @@ def setup_pinecone():
             print_result(True, f"Index {index_name} already exists")
         
         # Connect to index and verify
-        index = client.Index(index_name)
+        index = pc.Index(index_name)
         stats = index.describe_index_stats()
         print_result(True, f"Successfully connected to index. Current stats: {stats}")
         
