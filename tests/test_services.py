@@ -7,6 +7,8 @@ This test suite:
 3. Tests OpenAI API connectivity
 4. Tests LlamaParse API connectivity
 5. Provides detailed error messages and troubleshooting steps
+6. Lists all GCP buckets and their contents
+7. Lists all Pinecone indexes and their statistics
 """
 
 import os
@@ -16,6 +18,7 @@ import json
 import pytest
 from dotenv import load_dotenv
 from datetime import datetime
+from tabulate import tabulate
 
 # Add project root to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -41,7 +44,7 @@ def test_environment_variables():
     required_vars = {
         'GCP': [
             'GOOGLE_CLOUD_PROJECT',
-            'GCP_STORAGE_BUCKET',
+            'GOOGLE_CLOUD_BUCKET',
             'GOOGLE_APPLICATION_CREDENTIALS'
         ],
         'Pinecone': [
@@ -84,8 +87,54 @@ def test_environment_variables():
     
     return all_passed
 
+def list_all_gcp_buckets():
+    """List all GCP buckets in the project."""
+    print_header("Listing All GCP Buckets")
+    
+    try:
+        from google.cloud import storage
+        
+        # Load environment variables
+        load_dotenv()
+        
+        # Get GCP configuration
+        project_id = os.getenv('GOOGLE_CLOUD_PROJECT')
+        
+        if not project_id:
+            print_result(False, "Missing GCP_CLOUD_PROJECT environment variable")
+            return False
+        
+        # Initialize client
+        storage_client = storage.Client()
+        print_result(True, f"Connected to GCP project: {project_id}")
+        
+        # List all buckets
+        buckets = list(storage_client.list_buckets())
+        
+        if not buckets:
+            print_result(False, "No buckets found in the project")
+            return False
+        
+        print(f"\nFound {len(buckets)} buckets in project {project_id}:")
+        
+        # Create a table for better visualization
+        bucket_table = []
+        for bucket in buckets:
+            creation_time = bucket.time_created.strftime("%Y-%m-%d %H:%M:%S") if bucket.time_created else "Unknown"
+            location = bucket.location or "Unknown"
+            bucket_table.append([bucket.name, location, creation_time])
+        
+        headers = ["Bucket Name", "Location", "Creation Time"]
+        print(tabulate(bucket_table, headers=headers, tablefmt="grid"))
+        
+        return True
+    
+    except Exception as e:
+        print_result(False, f"Error listing GCP buckets: {str(e)}")
+        return False
+
 def test_gcp_storage():
-    """Test GCP Storage connectivity."""
+    """Test GCP Storage connectivity and list all documents."""
     print_header("Testing GCP Storage")
     
     try:
@@ -96,7 +145,7 @@ def test_gcp_storage():
         
         # Get GCP configuration
         project_id = os.getenv('GOOGLE_CLOUD_PROJECT')
-        bucket_name = os.getenv('GCP_STORAGE_BUCKET')
+        bucket_name = os.getenv('GOOGLE_CLOUD_BUCKET')
         
         if not project_id or not bucket_name:
             print_result(False, "Missing GCP environment variables")
@@ -111,11 +160,36 @@ def test_gcp_storage():
         if bucket.exists():
             print_result(True, f"Bucket exists: {bucket_name}")
             
-            # List files in bucket
-            blobs = list(bucket.list_blobs(max_results=5))
-            print(f"Found {len(blobs)} files in bucket (showing up to 5):")
+            # List all files in bucket (not just the first 5)
+            blobs = list(bucket.list_blobs())
+            
+            if not blobs:
+                print("No files found in the bucket.")
+                return True
+            
+            print(f"\nFound {len(blobs)} files in bucket {bucket_name}:")
+            
+            # Group files by type for better organization
+            file_types = {}
             for blob in blobs:
-                print(f"  - {blob.name} ({blob.size} bytes)")
+                file_ext = os.path.splitext(blob.name)[1].lower() or "No Extension"
+                if file_ext not in file_types:
+                    file_types[file_ext] = []
+                file_types[file_ext].append(blob)
+            
+            # Display files grouped by type
+            for file_ext, type_blobs in file_types.items():
+                print(f"\n{file_ext.upper()} Files ({len(type_blobs)}):")
+                
+                # Create a table for better visualization
+                file_table = []
+                for blob in type_blobs:
+                    size_mb = blob.size / (1024 * 1024)
+                    updated = blob.updated.strftime("%Y-%m-%d %H:%M:%S") if blob.updated else "Unknown"
+                    file_table.append([blob.name, f"{size_mb:.2f} MB", updated])
+                
+                headers = ["File Name", "Size", "Last Updated"]
+                print(tabulate(file_table, headers=headers, tablefmt="grid"))
             
             return True
         else:
@@ -128,12 +202,103 @@ def test_gcp_storage():
         print_result(False, f"Error testing GCP Storage: {str(e)}")
         return False
 
+def list_all_pinecone_indexes():
+    """List all Pinecone indexes and their statistics."""
+    print_header("Listing All Pinecone Indexes")
+    
+    try:
+        # Initialize Pinecone
+        pc = init_pinecone()
+        
+        if not pc:
+            print_result(False, "Failed to initialize Pinecone client")
+            return False
+        
+        # List all indexes
+        indexes = pc.list_indexes()
+        
+        if not indexes:
+            print_result(False, "No indexes found in Pinecone")
+            return False
+        
+        print(f"\nFound {len(indexes)} indexes in Pinecone:")
+        
+        # Create a table for better visualization
+        index_table = []
+        
+        for index in indexes:
+            # Get detailed stats for each index
+            try:
+                pinecone_index = pc.Index(index.name)
+                stats = pinecone_index.describe_index_stats()
+                
+                total_vector_count = stats.get('total_vector_count', 0)
+                dimension = stats.get('dimension', 'Unknown')
+                
+                # Get namespaces if available
+                namespaces = stats.get('namespaces', {})
+                namespace_count = len(namespaces) if namespaces else 0
+                
+                index_table.append([
+                    index.name,
+                    dimension,
+                    total_vector_count,
+                    namespace_count,
+                    index.host
+                ])
+                
+            except Exception as e:
+                print_result(False, f"Error getting stats for index {index.name}: {str(e)}")
+                index_table.append([
+                    index.name,
+                    "Error",
+                    "Error",
+                    "Error",
+                    index.host
+                ])
+        
+        headers = ["Index Name", "Dimension", "Vector Count", "Namespace Count", "Host"]
+        print(tabulate(index_table, headers=headers, tablefmt="grid"))
+        
+        # For each index, show namespace details
+        for index in indexes:
+            try:
+                pinecone_index = pc.Index(index.name)
+                stats = pinecone_index.describe_index_stats()
+                namespaces = stats.get('namespaces', {})
+                
+                if namespaces:
+                    print(f"\nNamespaces in index '{index.name}':")
+                    
+                    namespace_table = []
+                    for ns_name, ns_stats in namespaces.items():
+                        vector_count = ns_stats.get('vector_count', 0)
+                        namespace_table.append([ns_name, vector_count])
+                    
+                    ns_headers = ["Namespace", "Vector Count"]
+                    print(tabulate(namespace_table, headers=ns_headers, tablefmt="grid"))
+            
+            except Exception as e:
+                print_result(False, f"Error getting namespace details for index {index.name}: {str(e)}")
+        
+        return True
+        
+    except Exception as e:
+        print_result(False, f"Error listing Pinecone indexes: {str(e)}")
+        return False
+
 def test_pinecone():
-    """Test Pinecone connectivity."""
+    """Test Pinecone connectivity and list all indexes."""
     print_header("Testing Pinecone")
     
-    # Use the existing function from setup_rag_pipeline.py
-    return verify_pinecone_setup()
+    # First verify the connection
+    connection_ok = verify_pinecone_setup()
+    
+    if connection_ok:
+        # Then list all indexes
+        list_all_pinecone_indexes()
+    
+    return connection_ok
 
 def test_openai_api():
     """Test OpenAI API connectivity."""
@@ -181,6 +346,9 @@ def run_all_tests():
     
     # Test environment variables
     results['environment_variables'] = test_environment_variables()
+    
+    # List all GCP buckets
+    list_all_gcp_buckets()
     
     # Test GCP Storage
     results['gcp_storage'] = test_gcp_storage()
