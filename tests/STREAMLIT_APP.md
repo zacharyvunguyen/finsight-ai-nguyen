@@ -1,147 +1,141 @@
-# FinSight AI - Streamlit Application
+# FinSight AI Streamlit Application
 
 ## Overview
 
-The FinSight AI Streamlit application provides an intuitive interface for querying financial documents using a Retrieval Augmented Generation (RAG) pipeline. This document outlines the application's features, design, and functionality.
+The FinSight AI Streamlit application provides a user-friendly interface for querying financial documents using Retrieval-Augmented Generation (RAG). It allows users to upload PDF documents, process them, and ask natural language questions about their content.
 
 ## Features
 
-### Core Functionality
-- **Document Selection**: Select specific financial documents to query from Pinecone
-- **Natural Language Queries**: Ask questions about financial documents in plain English
-- **Source Attribution**: View the exact sources used to generate responses
-- **Conversation Memory**: Maintain context across multiple questions
-- **Example Questions**: Pre-defined questions to help users get started
+### Document Selection
+- Select specific documents to query from available documents in Pinecone
+- Documents are organized by type (10-K, 10-Q, 8-K, Uploaded PDFs)
+- Filter queries to focus on relevant documents
+
+### Natural Language Queries
+- Ask questions in plain English about your financial documents
+- Get contextually relevant answers based on the selected documents
+- Follow up with additional questions that maintain conversation context
+
+### Source Attribution
+- See exactly which documents and sections provided the information
+- Expand source documents to view the original context
+- Verify information directly from the source material
+
+### Conversation Memory
+- Chat history is maintained throughout the session
+- Follow-up questions can reference previous queries and answers
+- Reset conversation when starting a new topic
+
+### PDF Upload and Processing
+- Upload PDF files directly through the interface
+- Automatic processing with LlamaParse for text extraction
+- Embedding generation and storage in Pinecone
+- Duplicate detection to avoid processing the same document twice
 
 ### UI/UX Enhancements
-- **Modern Interface**: Clean, professional design with intuitive navigation
-- **Tabbed Layout**: Separate Chat and About sections for better organization
-- **Responsive Design**: Adapts to different screen sizes
-- **Visual Feedback**: Status indicators for operations (success, warning, error)
-- **Compact Information Display**: Efficient use of screen space
-
-### Advanced Features
-- **Name Recognition**: Enhanced handling of queries about specific individuals
-- **Fallback Mechanism**: Secondary search for names if initial query yields no results
-- **Document Type Recognition**: Automatic identification of document types (10-K, 10-Q, 8-K)
-- **Expandable Sources**: Collapsible sections for source documents to save space
+- Clean, modern interface with intuitive navigation
+- Responsive design that works on different screen sizes
+- Clear status indicators for processing and query operations
+- Example questions to help users get started
 
 ## Application Structure
 
-### Main Components
-1. **Sidebar**
-   - Index information display
-   - Document selection interface
-   - Refresh documents button
-   - Update query engine button
-   - Reset chat button
+The application is organized into three main tabs:
 
-2. **Chat Tab**
-   - Active documents display
-   - Chat history
-   - Example questions
-   - Chat input (positioned at bottom)
-   - Source attribution section
+1. **Chat Tab**: The main interface for querying documents and viewing responses
+2. **About Tab**: Information about the application, technologies, and advantages
+3. **Upload PDFs Tab**: Interface for uploading and processing new documents
 
-3. **About Tab**
-   - Application overview
-   - Technologies used
-   - Key components
-   - Advantages of RAG approach
-   - How it works section
+### Sidebar
+- Document selection controls
+- Index information display
+- Refresh documents button
+- Reset chat button
 
 ## Technical Implementation
 
 ### Session State Management
 The application uses Streamlit's session state to maintain:
 - Query engine configuration
-- QA chain
+- QA chain for document retrieval
 - Chat history
-- Conversation memory
+- Active documents selection
+- Uploaded PDF information
 - Environment variables
-- Active documents
-- Active tab selection
 
-### RAG Pipeline Integration
-1. **Document Retrieval**: Fetches document chunks from Pinecone based on semantic similarity
-2. **Context Assembly**: Combines retrieved chunks with conversation history
-3. **Response Generation**: Uses OpenAI's language model to generate responses
-4. **Source Attribution**: Displays source documents with metadata
+### Document Processing Pipeline
+1. PDF upload through the Streamlit interface
+2. Hash calculation for duplicate detection
+3. Firebase check for existing documents
+4. Google Cloud Storage upload for persistence
+5. LlamaParse processing for text extraction
+6. Pinecone storage for vector embeddings
+7. Firebase registration for metadata tracking
 
-### Enhanced Query Processing
-- **Custom Prompt Engineering**: Financial-specific prompt template
-- **Increased Context Window**: Retrieves 8 document chunks (increased from 5)
-- **Name Recognition**: Regex pattern to identify names in queries
-- **Fallback Mechanism**: Secondary query for specific entities
-
-## Design Elements
-
-### Visual Components
-- **Status Indicators**: Color-coded text for success (green), warning (orange), error (red)
-- **Document Cards**: Compact display of document information with type-specific icons
-- **Source Sections**: Expandable sections for source documents
-- **Example Question Grid**: Organized grid layout for example questions
-
-### CSS Styling
-- **Typography**: Consistent font sizing and styling
-- **Color Scheme**: Professional blue-based color palette
-- **Spacing**: Appropriate whitespace for readability
-- **Component Styling**: Custom styling for tabs, buttons, and information displays
+### Query Processing Pipeline
+1. Document selection in the sidebar
+2. Query engine setup with selected documents
+3. User query input through chat interface
+4. Retrieval of relevant document chunks from Pinecone
+5. Context assembly with retrieved chunks
+6. LLM response generation with OpenAI
+7. Display of answer and source attribution
 
 ## Usage Guide
 
 ### Getting Started
-1. Click "Refresh Available Documents" in the sidebar
-2. Select one or more documents from the list
-3. Click "Update Query Engine" to prepare the system
-4. Start asking questions in the chat input or use example questions
+1. Open the application in your browser
+2. Click "Refresh Available Documents" in the sidebar
+3. Select one or more documents to query
+4. Click "Update Query Engine" to prepare the system
+5. Start asking questions in the chat interface
 
-### Example Queries
-- "What was the company's revenue for the last fiscal year?"
-- "What are the main risk factors mentioned in the financial report?"
-- "Summarize the business overview and main operations."
-- "What are the key financial metrics and their trends over time?"
-- "Explain the company's strategy and future outlook."
-- "Who is [Person Name]?" (e.g., "Who is Arthur D. Levinson?")
+### Uploading New Documents
+1. Navigate to the "Upload PDFs" tab
+2. Click "Choose PDF files" and select one or more files
+3. Click "Process Selected PDFs"
+4. Wait for processing to complete (status updates will be shown)
+5. Return to the Chat tab and refresh available documents
 
-### Interpreting Results
-- **Main Response**: The answer to your question based on document content
-- **Source Documents**: The specific document chunks used to generate the response
-- **Metadata**: Information about each source document (document ID, page, etc.)
-
-## Recent Improvements
-
-### UI/UX Enhancements
-- Moved chat input to bottom of screen for better user experience
-- Removed bulky blue information boxes for cleaner interface
-- Implemented more compact document and source display
-- Added visual status indicators with minimal space usage
-- Reduced font sizes for better information density
-
-### Functional Improvements
-- Enhanced name recognition for queries about specific individuals
-- Implemented fallback mechanism for entity queries
-- Increased context retrieval from 5 to 8 documents
-- Improved QA prompt for better handling of specific entity queries
-
-## Running the Application
-
-```bash
-# Navigate to the tests directory
-cd tests
-
-# Run the Streamlit application
-streamlit run streamlit_app.py
-```
+### Effective Querying
+- Be specific in your questions for more accurate answers
+- Reference specific metrics, sections, or time periods when relevant
+- Use follow-up questions to drill down into details
+- Try example questions to see the system's capabilities
 
 ## Dependencies
-- Streamlit
-- LangChain
-- OpenAI
-- Pinecone
-- Python 3.9+
 
-## Notes
-- This application is designed for testing and demonstration purposes
-- For production use, additional security measures should be implemented
-- The application requires valid API keys for OpenAI and Pinecone 
+The Streamlit application relies on several key libraries:
+- `streamlit`: Web application framework
+- `langchain`: RAG pipeline orchestration
+- `pinecone`: Vector database for document storage
+- `openai`: Language model and embeddings
+- `firebase_admin`: Document metadata storage
+- `google.cloud.storage`: PDF file storage
+- `llama_cloud_services`: PDF parsing
+
+## Environment Variables
+
+The application requires several environment variables:
+- `OPENAI_API_KEY`: For language model and embeddings
+- `PINECONE_API_KEY`: For vector database access
+- `LLAMA_CLOUD_API_KEY`: For PDF parsing
+- `GOOGLE_CLOUD_BUCKET`: For PDF storage
+- `FIREBASE_CREDENTIALS`: For metadata storage
+
+## Error Handling
+
+The application includes robust error handling:
+- Fallback to demo mode if external services are unavailable
+- Clear error messages for connection issues
+- Graceful handling of processing failures
+- Status indicators for all operations
+
+## Future Enhancements
+
+Planned improvements for the application:
+- Multi-user support with authentication
+- Enhanced visualization of financial metrics
+- Comparative analysis across multiple documents
+- Custom document collections and saved queries
+- Export functionality for answers and sources 
